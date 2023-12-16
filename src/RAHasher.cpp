@@ -14,15 +14,18 @@
 void rc_hash_init_chd_cdreader(); /* in HashCHD.cpp */
 #endif
 
+static std::string g_systemDir = ".";
+
 static void usage(const char* appname)
 {
   printf("RAHasher %s\n====================\n", git::getReleaseVersion());
 
-  printf("Usage: %s [-v] systemid filepath\n", util::fileName(appname).c_str());
+  printf("Usage: %s [-v] [s systempath] systemid filepath\n", util::fileName(appname).c_str());
   printf("\n");
-  printf("  -v           (optional) enables verbose messages for debugging\n");
-  printf("  systemid     specifies the system id associated to the game (which hash algorithm to use)\n");
-  printf("  filepath     specifies the path to the game file\n");
+  printf("  -v             (optional) enables verbose messages for debugging\n");
+  printf("  -s systempath  (optional) specifies where supplementary files are stored (typically a path to RetroArch/system)\n");
+  printf("  systemid       specifies the system id associated to the game (which hash algorithm to use)\n");
+  printf("  filepath       specifies the path to the game file\n");
 }
 
 class StdErrLogger : public Logger
@@ -68,6 +71,46 @@ static void* rhash_file_open(const char* path)
   return util::openFile(logger.get(), path, "rb");
 }
 
+static int rhash_3ds_lookup_cia_normal_key(uint8_t index, uint8_t key[16])
+{
+  char scan[16];
+  size_t scan_len;
+  char buffer[128];
+  char* line;
+  int result = 0;
+
+  FILE* fp = util::openFile(logger.get(), g_systemDir + "/aes_keys.txt", "r");
+  if (!fp)
+    return 0;
+
+  scan_len = snprintf(scan, sizeof(scan), "common%u=", index);
+
+  while (line = fgets(buffer, sizeof(buffer), fp))
+  {
+    if (memcmp(line, scan, scan_len) == 0)
+    {
+      int index;
+      line += scan_len;
+      scan[2] = '\0';
+
+      for (index = 0; index < 16; ++index)
+      {
+        scan[0] = line[0];
+        scan[1] = line[1];
+
+        key[index] = (uint8_t) strtol(scan, NULL, 16);
+        line += 2;
+      }
+
+      result = 1;
+      break;
+    }
+  }
+
+  fclose(fp);
+  return result;
+}
+
 #define RC_CONSOLE_MAX 90
 
 int main(int argc, char* argv[])
@@ -76,18 +119,26 @@ int main(int argc, char* argv[])
   std::string file;
   char hash[33];
   int result = 1;
+  int argi = 1;
 
-  if (argc == 3)
+  while (argv[argi][0] == '-')
   {
-    consoleId = atoi(argv[1]);
-    file = argv[2];
+    if (strcmp(argv[argi], "-v") == 0)
+    {
+      rc_hash_init_verbose_message_callback(rhash_log);
+      ++argi;
+    }
+    else if (strcmp(argv[argi], "-s") == 0)
+    {
+      g_systemDir = argv[++argi];
+      ++argi;
+    }
   }
-  else if (argc == 4 && strcmp(argv[1], "-v") == 0)
-  {
-    rc_hash_init_verbose_message_callback(rhash_log);
 
-    consoleId = atoi(argv[2]);
-    file = argv[3];
+  if (argi + 2 <= argc)
+  {
+    consoleId = atoi(argv[argi]);
+    file = argv[argi + 1];
   }
 
   if (consoleId != 0 && !file.empty())
@@ -134,6 +185,9 @@ int main(int argc, char* argv[])
       {
         rc_hash_init_default_cdreader();
       }
+
+      if (consoleId == RC_CONSOLE_NINTENDO_3DS)
+        rc_hash_init_3ds_cia_normal_key_callback(rhash_3ds_lookup_cia_normal_key);
 
       if (consoleId > RC_CONSOLE_MAX)
       {

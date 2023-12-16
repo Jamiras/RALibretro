@@ -61,7 +61,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)SDL2\include;$(ProjectDir)miniz;$(ProjectDir)RAInterface;$(ProjectDir)libchdr\include;$(ProjectDir)rcheevos\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)SDL2\include;$(ProjectDir)miniz;$(ProjectDir)RAInterface;$(ProjectDir)libchdr\include;$(ProjectDir)rcheevos\include;$(ProjectDir)libretro;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>LOG_TO_FILE;NOMINMAX;WIN32;_DEBUG;_WINDOWS;OUTSIDE_SPEEX;RANDOM_PREFIX=speex;_USE_SSE2;FIXED_POINT;HAVE_CHD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -91,7 +91,7 @@ $(ProjectDir)RAInterface\CopyOverlay.bat $(SolutionDir)bin</Command>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)SDL2\include;$(ProjectDir)miniz;$(ProjectDir)RAInterface;$(ProjectDir)libchdr\include;$(ProjectDir)rcheevos\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)SDL2\include;$(ProjectDir)miniz;$(ProjectDir)RAInterface;$(ProjectDir)libchdr\include;$(ProjectDir)rcheevos\include;$(ProjectDir)libretro;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -118,7 +118,7 @@ $(ProjectDir)RAInterface\CopyOverlay.bat $(SolutionDir)bin</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)SDL2\include;$(ProjectDir)miniz;$(ProjectDir)RAInterface;$(ProjectDir)libchdr\include;$(ProjectDir)rcheevos\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)SDL2\include;$(ProjectDir)miniz;$(ProjectDir)RAInterface;$(ProjectDir)libchdr\include;$(ProjectDir)rcheevos\include;$(ProjectDir)libretro;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
       <OmitFramePointers>false</OmitFramePointers>
       <PreprocessorDefinitions>LOG_TO_FILE;NOMINMAX;_WIN64;_DEBUG;_WINDOWS;OUTSIDE_SPEEX;RANDOM_PREFIX=speex;_USE_SSE2;FIXED_POINT;HAVE_CHD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -148,7 +148,7 @@ $(ProjectDir)RAInterface\CopyOverlay.bat $(SolutionDir)\bin64</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)SDL2\include;$(ProjectDir)miniz;$(ProjectDir)RAInterface;$(ProjectDir)libchdr\include;$(ProjectDir)rcheevos\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)SDL2\include;$(ProjectDir)miniz;$(ProjectDir)RAInterface;$(ProjectDir)libchdr\include;$(ProjectDir)rcheevos\include;$(ProjectDir)libretro;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
       <OmitFramePointers>false</OmitFramePointers>
       <PreprocessorDefinitions>LOG_TO_FILE;NOMINMAX;_WIN64;NDEBUG;_WINDOWS;OUTSIDE_SPEEX;RANDOM_PREFIX=speex;_USE_SSE2;FIXED_POINT;HAVE_CHD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -217,9 +217,8 @@ $(ProjectDir)RAInterface\CopyOverlay.bat $(SolutionDir)\bin64</Command>
     <ClCompile Include="RAInterface\RA_Interface.cpp" />
     <ClCompile Include="RA_Implementation.cpp" />
     <ClCompile Include="rcheevos\src\rcheevos\consoleinfo.c" />
-    <ClCompile Include="rcheevos\src\rcheevos\rc_libretro.c">
-      <AdditionalIncludeDirectories>$(SolutionDir)src\libretro;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
+    <ClCompile Include="rcheevos\src\rc_libretro.c" />
+    <ClCompile Include="rcheevos\src\rhash\aes.c" />
     <ClCompile Include="rcheevos\src\rhash\cdreader.c" />
     <ClCompile Include="rcheevos\src\rhash\hash.c">
       <ObjectFileName>$(IntDir)rhash</ObjectFileName>
