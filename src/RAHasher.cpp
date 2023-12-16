@@ -85,7 +85,7 @@ static int rhash_3ds_lookup_cia_normal_key(uint8_t index, uint8_t key[16])
 
   scan_len = snprintf(scan, sizeof(scan), "common%u=", index);
 
-  while (line = fgets(buffer, sizeof(buffer), fp))
+  while ((line = fgets(buffer, sizeof(buffer), fp)))
   {
     if (memcmp(line, scan, scan_len) == 0)
     {
@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
   int result = 1;
   int argi = 1;
 
-  while (argv[argi][0] == '-')
+  while (argi < argc && argv[argi][0] == '-')
   {
     if (strcmp(argv[argi], "-v") == 0)
     {
