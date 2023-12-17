@@ -20,7 +20,7 @@ static void usage(const char* appname)
 {
   printf("RAHasher %s\n====================\n", git::getReleaseVersion());
 
-  printf("Usage: %s [-v] [s systempath] systemid filepath\n", util::fileName(appname).c_str());
+  printf("Usage: %s [-v] [-s systempath] systemid filepath\n", util::fileName(appname).c_str());
   printf("\n");
   printf("  -v             (optional) enables verbose messages for debugging\n");
   printf("  -s systempath  (optional) specifies where supplementary files are stored (typically a path to RetroArch/system)\n");
