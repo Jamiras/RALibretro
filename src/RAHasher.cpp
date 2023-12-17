@@ -71,11 +71,64 @@ static void* rhash_file_open(const char* path)
   return util::openFile(logger.get(), path, "rb");
 }
 
+/* TODO: move to rc_libretro.c ?? */
+static void rhash_read_128bit_hex(const char* hex, uint8_t key[16])
+{
+  char pair[4];
+  int index;
+  pair[2] = '\0';
+
+  for (index = 0; index < 16; ++index)
+  {
+    pair[0] = *hex++;
+    pair[1] = *hex++;
+
+    key[index] = (uint8_t)strtol(pair, NULL, 16);
+  }
+}
+
+static void rhash_rol_128bit(uint8_t key[16], int amount)
+{
+  uint8_t copy[16];
+  int offset = amount / 8;
+  int shift = amount % 8;
+  int index;
+
+  memcpy(copy, key, 16);
+  for (index = 0; index < 16; ++index)
+  {
+    key[index] = (uint8_t)(copy[offset] << shift);
+    offset = (offset + 1) % 16;
+    key[index] |= (uint8_t)(copy[offset] >> (8 - shift));
+  }
+}
+
+static void rhash_xor_128bit(uint8_t key[16], const uint8_t value[16])
+{
+  int index;
+  for (index = 0; index < 16; ++index)
+    key[index] ^= value[index];
+}
+
+static void rhash_add_128bit(uint8_t key[16], const uint8_t value[16])
+{
+  uint16_t carry = 0;
+  int index;
+  for (index = 15; index >= 0; --index)
+  {
+    carry += key[index] + value[index];
+    key[index] = (uint8_t)(carry & 0xFF);
+    carry >>= 8;
+  }
+}
+
 static int rhash_3ds_lookup_cia_normal_key(uint8_t index, uint8_t key[16])
 {
   char scan[16];
   size_t scan_len;
   char buffer[128];
+  uint8_t keyX[16];
+  uint8_t keyY[16];
   char* line;
   int result = 0;
 
@@ -83,33 +136,43 @@ static int rhash_3ds_lookup_cia_normal_key(uint8_t index, uint8_t key[16])
   if (!fp)
     return 0;
 
+  keyX[0] = 0;
+  keyY[0] = 0;
   scan_len = snprintf(scan, sizeof(scan), "common%u=", index);
 
   while ((line = fgets(buffer, sizeof(buffer), fp)))
   {
     if (memcmp(line, scan, scan_len) == 0)
     {
-      int index;
-      line += scan_len;
-      scan[2] = '\0';
-
-      for (index = 0; index < 16; ++index)
-      {
-        scan[0] = line[0];
-        scan[1] = line[1];
-
-        key[index] = (uint8_t) strtol(scan, NULL, 16);
-        line += 2;
-      }
-
-      result = 1;
-      break;
+      rhash_read_128bit_hex(line + scan_len, keyY);
+      if (keyX[0])
+        break;
+    }
+    else if (memcmp(line, "slot0x3DKeyX=", 13) == 0)
+    {
+      rhash_read_128bit_hex(line + 13, keyX);
+      if (keyY[0])
+        break;
     }
   }
 
   fclose(fp);
+
+  if (keyX[0] && keyY[0])
+  {
+    uint8_t generator_constant[16] = {0x1F, 0xF9, 0xE9, 0xAA, 0xC5, 0xFE, 0x04, 0x08, 0x02, 0x45, 0x91, 0xDC, 0x5D, 0x52, 0x76, 0x8A};
+    memcpy(key, keyX, 16);
+    rhash_rol_128bit(key, 2);
+    rhash_xor_128bit(key, keyY);
+    rhash_add_128bit(key, generator_constant);
+    rhash_rol_128bit(key, 87);
+    result = 1;
+  }
+
   return result;
 }
+
+/* TODO: end move to rc_libretro.c ?? */
 
 #define RC_CONSOLE_MAX 90
 
