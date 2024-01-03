@@ -24,6 +24,7 @@ CXXFLAGS += $(DEFINES)
 LIBS=
 OBJS=\
 	src/components/Logger.o \
+	src/libmincrypt/sha256.o \
 	src/miniz/miniz.o \
 	src/miniz/miniz_tdef.o \
 	src/miniz/miniz_tinfl.o \

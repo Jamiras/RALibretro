@@ -68,6 +68,7 @@ OBJS=\
 	src/components/Microphone.o \
 	src/components/Video.o \
 	src/components/VideoContext.o \
+	src/libmincrypt/sha256.o \
 	src/miniz/miniz.o \
 	src/miniz/miniz_tdef.o \
 	src/miniz/miniz_tinfl.o \

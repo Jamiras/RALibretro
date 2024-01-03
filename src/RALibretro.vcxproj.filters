@@ -40,6 +40,9 @@
     <Filter Include="Source Files\rcheevos">
       <UniqueIdentifier>{f03f66d3-40a1-4a92-8840-586859a3b6b5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\libmincrypt">
+      <UniqueIdentifier>{cba7a46b-2408-4148-92ae-1d5acc541fa2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="About.cpp">
@@ -161,6 +164,9 @@
     </ClCompile>
     <ClCompile Include="rcheevos\src\rc_libretro.c">
       <Filter>Source Files\rcheevos</Filter>
+    </ClCompile>
+    <ClCompile Include="libmincrypt\sha256.c">
+      <Filter>Source Files\libmincrypt</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -7,6 +7,8 @@
 
 #include <rcheevos/include/rc_hash.h>
 
+#include <libmincrypt/sha256.h>
+
 #include <memory>
 #include <string.h>
 
@@ -122,6 +124,66 @@ static void rhash_add_128bit(uint8_t key[16], const uint8_t value[16])
   }
 }
 
+static int rhash_3ds_normalize_keys(uint8_t keyX[16], uint8_t keyY[16], uint8_t keyN[16])
+{
+  if (keyX[0] && keyY[0])
+  {
+    uint8_t generator_constant[16] = { 0x1F, 0xF9, 0xE9, 0xAA, 0xC5, 0xFE, 0x04, 0x08, 0x02, 0x45, 0x91, 0xDC, 0x5D, 0x52, 0x76, 0x8A };
+
+    memcpy(keyN, keyX, 16);
+    rhash_rol_128bit(keyN, 2);
+    rhash_xor_128bit(keyN, keyY);
+    rhash_add_128bit(keyN, generator_constant);
+    rhash_rol_128bit(keyN, 87);
+    return 1;
+  }
+
+  return 0;
+}
+
+static void rhash_print_key(uint8_t key[16])
+{
+  printf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+    key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[7],
+    key[8], key[9], key[10], key[11], key[12], key[13], key[14], key[15]);
+}
+
+static int rhash_3ds_build_normal_key(char* scan, size_t scan_len, uint8_t key[16])
+{
+  char buffer[128];
+  uint8_t keyX[16];
+  uint8_t keyY[16];
+  char* line;
+  int result = 0;
+
+  FILE* fp = util::openFile(logger.get(), g_systemDir + "/aes_keys.txt", "r");
+  if (!fp)
+    return 0;
+
+  keyX[0] = 0;
+  keyY[0] = 0;
+
+  while ((line = fgets(buffer, sizeof(buffer), fp)))
+  {
+    if (memcmp(line, scan, scan_len) == 0)
+    {
+      rhash_read_128bit_hex(line + scan_len, keyY);
+      if (keyX[0])
+        break;
+    }
+    else if (memcmp(line, "slot0x3DKeyX=", 13) == 0)
+    {
+      rhash_read_128bit_hex(line + 13, keyX);
+      if (keyY[0])
+        break;
+    }
+  }
+
+  fclose(fp);
+
+  return rhash_3ds_normalize_keys(keyX, keyY, key);
+}
+
 static int rhash_3ds_lookup_cia_normal_key(uint8_t index, uint8_t key[16])
 {
   char scan[16];
@@ -158,18 +220,103 @@ static int rhash_3ds_lookup_cia_normal_key(uint8_t index, uint8_t key[16])
 
   fclose(fp);
 
-  if (keyX[0] && keyY[0])
+  return rhash_3ds_normalize_keys(keyX, keyY, key);
+}
+
+static int rhash_3ds_lookup_ncch_normal_key(uint8_t primaryKeyY[16],
+  uint8_t secondaryKeyXSlot, uint8_t* programId,
+  uint8_t primaryKeyOut[16], uint8_t secondaryKeyOut[16])
+{
+  char scan[16];
+  char buffer[128];
+  uint8_t primaryKeyX[16];
+  uint8_t secondaryKeyX[16];
+  uint8_t secondaryKeyY[16];
+  char* line;
+
+  FILE* fp = util::openFile(logger.get(), g_systemDir + "/aes_keys.txt", "r");
+  if (!fp)
+    return 0;
+
+  primaryKeyX[0] = 0;
+  secondaryKeyX[0] = 0;
+  snprintf(scan, sizeof(scan), "slot0x%02XKeyX=", secondaryKeyXSlot);
+
+  while ((line = fgets(buffer, sizeof(buffer), fp)))
   {
-    uint8_t generator_constant[16] = {0x1F, 0xF9, 0xE9, 0xAA, 0xC5, 0xFE, 0x04, 0x08, 0x02, 0x45, 0x91, 0xDC, 0x5D, 0x52, 0x76, 0x8A};
-    memcpy(key, keyX, 16);
-    rhash_rol_128bit(key, 2);
-    rhash_xor_128bit(key, keyY);
-    rhash_add_128bit(key, generator_constant);
-    rhash_rol_128bit(key, 87);
-    result = 1;
+    if (memcmp(line, "slot0x2CKeyX=", 13) == 0)
+    {
+      rhash_read_128bit_hex(line + 13, primaryKeyX);
+      if (secondaryKeyX[0])
+        break;
+
+      if (secondaryKeyXSlot == 0x2C)
+      {
+        memcpy(secondaryKeyX, primaryKeyX, sizeof(secondaryKeyX));
+        break;
+      }
+    }
+    else if (memcmp(line, scan, 13) == 0)
+    {
+      rhash_read_128bit_hex(line + 13, secondaryKeyX);
+      if (primaryKeyX[0])
+        break;
+    }
   }
 
-  return result;
+  fclose(fp);
+
+  if (!rhash_3ds_normalize_keys(primaryKeyX, primaryKeyY, primaryKeyOut))
+    return 0;
+
+  if (!programId)
+  {
+    memcpy(secondaryKeyY, primaryKeyY, sizeof(secondaryKeyY));
+  }
+  else
+  {
+    uint32_t count;
+    SHA256_CTX ctx;
+
+    /* find the seed for the programId */
+    fp = util::openFile(logger.get(), g_systemDir + "/seeddb.bin", "rb");
+    if (!fp)
+      return 0;
+
+    /* seeddb.bin's layout is simply the first 4 bytes indicate the amount of seeds in the
+     * file, followed by 12 bytes of padding. Then a collection of seeds in the format of
+     * 8 bytes for the program id, then 16 bytes for the seed, then 8 bytes of padding */
+    fread(&count, sizeof(count), 1, fp);
+    fseek(fp, 12, SEEK_CUR);
+
+    for (; count > 0; count--)
+    {
+      fread(buffer, sizeof(uint8_t), 8, fp);
+      if (memcmp(buffer, programId, 8) == 0)
+      {
+        fread(secondaryKeyY, sizeof(uint8_t), sizeof(secondaryKeyY), fp);
+        break;
+      }
+      fseek(fp, 16 + 8, SEEK_CUR);
+    }
+
+    fclose(fp);
+
+    if (count == 0) /* did not find programId in seeddb.bin */
+      return 0;
+
+    /* the actual secondaryKeyY used to generate the normalized key is the first 16 bytes
+     * of the SHA256 of the primaryKeyY and the seed pulled from seeddb.bin */
+    SHA256_init(&ctx);
+    SHA256_update(&ctx, primaryKeyY, 16);
+    SHA256_update(&ctx, secondaryKeyY, 16);
+    memcpy(secondaryKeyY, SHA256_final(&ctx), sizeof(secondaryKeyY));
+  }
+
+  if (!rhash_3ds_normalize_keys(secondaryKeyX, secondaryKeyY, secondaryKeyOut))
+    return 0;
+
+  return 1;
 }
 
 /* TODO: end move to rc_libretro.c ?? */
@@ -250,7 +397,10 @@ int main(int argc, char* argv[])
       }
 
       if (consoleId == RC_CONSOLE_NINTENDO_3DS)
-        rc_hash_init_3ds_cia_normal_key_callback(rhash_3ds_lookup_cia_normal_key);
+      {
+        rc_hash_init_3ds_get_cia_normal_key_func(rhash_3ds_lookup_cia_normal_key);
+        rc_hash_init_3ds_get_ncch_normal_keys_func(rhash_3ds_lookup_ncch_normal_key);
+      }
 
       if (consoleId > RC_CONSOLE_MAX)
       {
